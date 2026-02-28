@@ -3,98 +3,69 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
--- Configuration
+-- Config
 local PREMIUM_USER_ID = 1730521707
 local WHITELIST_URL = "https://raw.githubusercontent.com/entity-3034228/playerwhitelist/refs/heads/main/whitelists.json"
-local REPO_BASE = "https://raw.githubusercontent.com/entity-3034228/Oreo-V4/main/poopparty-main/"
 
--- Helper function to load a remote Lua module
-local function loadModule(path)
-    local url = REPO_BASE .. path
-    local success, code = pcall(function()
-        return game:HttpGet(url, true)
-    end)
-    if success and code then
-        return loadstring(code)()
-    else
-        warn("Failed to load module:", path)
-    end
+-- Report where it fails
+local function debugPrint(msg)
+    print("[Loader Debug] " .. msg)
 end
 
--- 1) Fetch whitelist/blacklist
+-- 1) Fetch whitelist JSON
+debugPrint("Fetching whitelist JSON...")
 local success, response = pcall(function()
     return game:HttpGet(WHITELIST_URL)
 end)
 
 local accountType = "free"
-local kickReason = nil
-local accountTags = {}
+local kickMessage
 
 if success then
+    debugPrint("Whitelist JSON loaded")
     local data = HttpService:JSONDecode(response)
 
-    -- Check blacklist
+    -- Blacklist check
     for idStr, reason in pairs(data.BlacklistedUsers or {}) do
         if tonumber(idStr) == player.UserId then
-            kickReason = reason or "You are blacklisted."
+            kickMessage = reason or "Blacklisted"
             break
         end
     end
 
-    -- Check whitelist / premium
-    for _, user in ipairs(data.WhitelistedUsers or {}) do
-        if user.userid == player.UserId then
+    -- Whitelist (premium) check
+    for _, w in ipairs(data.WhitelistedUsers or {}) do
+        if w.userid == player.UserId then
             accountType = "premium"
-            accountTags = user.tags or {}
             break
         end
     end
+
 else
-    warn("Could not fetch whitelist JSON. Defaulting to free user.")
+    debugPrint("Failed to fetch whitelist JSON")
 end
 
 -- Kick if blacklisted
-if kickReason then
-    player:Kick(kickReason)
+if kickMessage then
+    debugPrint("User is blacklisted, kicking...")
+    player:Kick(kickMessage)
     return
 end
 
-print("Access granted! Account type:", accountType)
+debugPrint("User allowed, account type: " .. accountType)
 
--- Optional: display premium tags
-if accountType == "premium" then
-    for _, tag in ipairs(accountTags) do
-        print("Premium tag:", tag.text)
-    end
-end
+-- 2) Load main script using official pattern
+local baseUrl = "https://raw.githubusercontent.com/entity-3034228/Oreo-V4/main/poopparty-main/"
+local mainScriptUrl = baseUrl .. "NewMainScript.lua"
+debugPrint("Loading main script from: " .. mainScriptUrl)
 
--- 2) Load core modules (assets, libraries, GUIs)
-local coreModules = {
-    "assets/init.lua",
-    "libraries/init.lua",
-    "guis/init.lua"
-}
-
-for _, modulePath in ipairs(coreModules) do
-    pcall(function()
-        loadModule(modulePath)
-    end)
-end
-
--- 3) Load all game modules
--- Add all your game scripts here
-local gameModules = {
-    "games/6872274481.lua"
-    -- add more game scripts if needed
-}
-
-for _, gameScript in ipairs(gameModules) do
-    pcall(function()
-        loadModule(gameScript)
-    end)
-end
-
--- 4) Load main script last
-pcall(function()
-    loadModule("NewMainScript.lua")
+local ok, code = pcall(function()
+    return game:HttpGet(mainScriptUrl, true)
 end)
+
+if not ok or not code then
+    error("Failed to download main script.")
+end
+
+debugPrint("Main script downloaded, executing...")
+loadstring(code)()
