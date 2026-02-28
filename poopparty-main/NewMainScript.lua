@@ -1,4 +1,4 @@
-local EXPECTED_REPO_OWNER = "poopparty"
+local EXPECTED_REPO_OWNER = "entity.3034228"
 local EXPECTED_REPO_NAME = "poopparty"
 local ACCOUNT_SYSTEM_URL = "https://raw.githubusercontent.com/poopparty/whitelistcheck/main/AccountSystem.lua"
 local KEY_PAGE_URL = "https://wrealaero.github.io/vape-keys/"
