@@ -94,8 +94,8 @@ local function loadLua(url)
     end
 end
 
--- 4️⃣ Load all folders
-local folders = {"assets", "games", "guis", "libraries", "src", "profiles/premade"}
+-- 4️⃣ Folders to auto-load (except GUIs)
+local folders = {"assets", "games", "libraries", "src", "profiles/premade"}
 
 for _, folder in ipairs(folders) do
     debug("Fetching folder: " .. folder)
@@ -105,7 +105,13 @@ for _, folder in ipairs(folders) do
     end
 end
 
--- 5️⃣ Load individual scripts like Anti-Crash.lua
+-- 5️⃣ Load only the specific GUI script
+local guiScriptUrl = ("https://raw.githubusercontent.com/%s/%s/%s/%s/guis/new.lua"):format(
+    REPO_OWNER, REPO_NAME, BRANCH, BASE_PATH
+)
+loadLua(guiScriptUrl)
+
+-- 6️⃣ Load individual scripts
 local individualScripts = {"Anti-Crash.lua"}
 
 for _, file in ipairs(individualScripts) do
