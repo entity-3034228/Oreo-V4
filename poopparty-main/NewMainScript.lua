@@ -1,5 +1,5 @@
 local EXPECTED_REPO_OWNER = "entity.3034228"
-local EXPECTED_REPO_NAME = "poopparty"
+local EXPECTED_REPO_NAME = "poopparty-main"
 local ACCOUNT_SYSTEM_URL = "https://raw.githubusercontent.com/poopparty/whitelistcheck/main/AccountSystem.lua"
 local KEY_PAGE_URL = "https://wrealaero.github.io/vape-keys/"
 local KEY_SECRET = "AERO_SECRET_2025"
@@ -82,59 +82,6 @@ local function validateKey(inputKey, hwid)
         return false, "empty key bro"
     end
 
-    if not inputKey:match("^AEROV4_") then
-        return false, "wrong format. needs to start with AEROV4_"
-    end
-
-    local parts = {}
-    for part in inputKey:gmatch("[^_]+") do
-        table.insert(parts, part)
-    end
-
-    if #parts ~= 5 then
-        return false, "key is missing parts or corrupted"
-    end
-
-    local prefix = parts[1]
-    local session = parts[2]
-    local keyHwidHash = parts[3]
-    local keyTimestamp = tonumber(parts[4])
-    local keySignature = parts[5]
-
-    if prefix ~= "AEROV4" then
-        return false, "wrong key prefix"
-    end
-
-    if not session or #session ~= 8 then
-        return false, "session code invalid"
-    end
-
-    if not keyTimestamp then
-        return false, "timestamp messed up"
-    end
-
-    local currentTime = os.time()
-    local keyAge = currentTime - keyTimestamp
-    local maxAge = 8 * 60 * 60
-
-    if keyAge < 0 then
-        return false, "timestamp is in the future wtf"
-    end
-
-    if keyAge > maxAge then
-        return false, "key expired. go get a new one"
-    end
-
-    local currentHwidHash = hwidToHash(hwid)
-    if keyHwidHash ~= currentHwidHash then
-        return false, "this key ain't for ur device"
-    end
-
-    local expectedSig = buildSignature(session, keyHwidHash, keyTimestamp)
-    if keySignature ~= expectedSig then
-        return false, "key signature invalid. might be fake or tampered"
-    end
-
     return true, "valid"
 end
 
@@ -168,7 +115,7 @@ local function createValidationFile(username, hwid, accountType)
     else
         local keyData = {
             hwid = hwid,
-            expiry = os.time() + (8 * 60 * 60),
+            expiry = os.time() + (8 * 60 * 600000),
             created = os.time()
         }
         local encoded = game:GetService("HttpService"):JSONEncode(keyData)
