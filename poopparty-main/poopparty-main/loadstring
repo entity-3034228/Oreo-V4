@@ -1,0 +1,1 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/poopparty/poopparty/main/NewMainScript.lua", true))()
