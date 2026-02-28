@@ -3,17 +3,20 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
--- Configuration
+-- Config
 local PREMIUM_USER_ID = 1730521707
 local WHITELIST_URL = "https://raw.githubusercontent.com/entity-3034228/playerwhitelist/refs/heads/main/whitelists.json"
-local REPO_BASE = "https://raw.githubusercontent.com/entity-3034228/Oreo-V4/main/poopparty-main/"
+local REPO_OWNER = "entity-3034228"
+local REPO_NAME = "Oreo-V4"
+local BRANCH = "main"
+local BASE_PATH = "poopparty-main"
 
 -- Debug helper
 local function debug(msg)
     print("[LOADER] " .. tostring(msg))
 end
 
--- 1️⃣ Fetch whitelist JSON
+-- 1️⃣ Whitelist / Blacklist
 debug("Fetching whitelist JSON...")
 local success, response = pcall(function()
     return game:HttpGet(WHITELIST_URL)
@@ -23,7 +26,6 @@ local accountType = "free"
 local kickReason = nil
 
 if success then
-    debug("Whitelist loaded")
     local data = HttpService:JSONDecode(response)
 
     -- Blacklist
@@ -45,53 +47,72 @@ else
     debug("Failed to fetch whitelist, defaulting to free")
 end
 
--- Kick blacklisted users
 if kickReason then
-    debug("User is blacklisted, kicking...")
     player:Kick(kickReason)
     return
 end
 
 debug("User allowed. Account type: " .. accountType)
-_G.AccountType = accountType -- global variable for scripts
+_G.AccountType = accountType
 
--- 2️⃣ Helper to load a module
-local function loadModule(path)
-    local url = REPO_BASE .. path
+-- 2️⃣ GitHub API fetcher for a folder
+local function fetchFolder(folderPath)
+    local apiUrl = ("https://api.github.com/repos/%s/%s/contents/%s?ref=%s"):format(
+        REPO_OWNER, REPO_NAME, folderPath, BRANCH
+    )
+    local ok, response = pcall(function()
+        return game:HttpGet(apiUrl)
+    end)
+    if not ok then
+        warn("[LOADER] Failed to fetch folder:", folderPath)
+        return {}
+    end
+    local decoded = HttpService:JSONDecode(response)
+    local luaFiles = {}
+    for _, file in ipairs(decoded) do
+        if file.type == "file" and file.name:sub(-4) == ".lua" then
+            table.insert(luaFiles, file.download_url)
+        end
+    end
+    return luaFiles
+end
+
+-- 3️⃣ Load a Lua file from URL
+local function loadLua(url)
     local ok, code = pcall(function()
         return game:HttpGet(url, true)
     end)
     if ok and code then
         local success, err = pcall(loadstring(code))
         if not success then
-            warn("[LOADER] Error running module:", path, err)
+            warn("[LOADER] Failed to execute script:", url, err)
         else
-            debug("Loaded module: " .. path)
+            debug("Loaded script: " .. url)
         end
     else
-        warn("[LOADER] Failed to download module: " .. path)
+        warn("[LOADER] Failed to download script:", url)
     end
 end
 
--- 3️⃣ Load all core modules (libraries, assets, GUIs)
-local coreModules = {
-    "libraries/init.lua",
-    "assets/init.lua",
-    "guis/init.lua"
-}
+-- 4️⃣ Load all folders
+local folders = {"assets", "games", "guis", "libraries", "src", "profiles/premade"}
 
-for _, mod in ipairs(coreModules) do
-    loadModule(mod)
+for _, folder in ipairs(folders) do
+    debug("Fetching folder: " .. folder)
+    local luaFiles = fetchFolder(BASE_PATH .. "/" .. folder)
+    for _, fileUrl in ipairs(luaFiles) do
+        loadLua(fileUrl)
+    end
 end
 
--- 4️⃣ Load all game scripts
-local gameModules = {
-    "games/6872274481.lua"
-    -- add more game scripts here if needed
-}
+-- 5️⃣ Load individual scripts like Anti-Crash.lua
+local individualScripts = {"Anti-Crash.lua"}
 
-for _, gameMod in ipairs(gameModules) do
-    loadModule(gameMod)
+for _, file in ipairs(individualScripts) do
+    local url = ("https://raw.githubusercontent.com/%s/%s/%s/%s/%s"):format(
+        REPO_OWNER, REPO_NAME, BRANCH, BASE_PATH, file
+    )
+    loadLua(url)
 end
 
 debug("All modules loaded successfully!")
