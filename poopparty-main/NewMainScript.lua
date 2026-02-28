@@ -6,66 +6,63 @@ local player = Players.LocalPlayer
 -- Config
 local PREMIUM_USER_ID = 1730521707
 local WHITELIST_URL = "https://raw.githubusercontent.com/entity-3034228/playerwhitelist/refs/heads/main/whitelists.json"
+local GAME_SCRIPT_URL = "https://raw.githubusercontent.com/entity-3034228/Oreo-V4/refs/heads/main/poopparty-main/games/6872274481.lua"
 
--- Report where it fails
-local function debugPrint(msg)
-    print("[Loader Debug] " .. msg)
+-- Debug print helper
+local function debug(msg)
+    print("[LOADER] " .. tostring(msg))
 end
 
 -- 1) Fetch whitelist JSON
-debugPrint("Fetching whitelist JSON...")
+debug("Fetching whitelist JSON...")
 local success, response = pcall(function()
     return game:HttpGet(WHITELIST_URL)
 end)
 
 local accountType = "free"
-local kickMessage
+local kickReason = nil
 
 if success then
-    debugPrint("Whitelist JSON loaded")
+    debug("Whitelist JSON loaded")
     local data = HttpService:JSONDecode(response)
 
     -- Blacklist check
     for idStr, reason in pairs(data.BlacklistedUsers or {}) do
         if tonumber(idStr) == player.UserId then
-            kickMessage = reason or "Blacklisted"
+            kickReason = reason or "You are blacklisted."
             break
         end
     end
 
-    -- Whitelist (premium) check
-    for _, w in ipairs(data.WhitelistedUsers or {}) do
-        if w.userid == player.UserId then
+    -- Whitelist / premium check
+    for _, user in ipairs(data.WhitelistedUsers or {}) do
+        if user.userid == player.UserId then
             accountType = "premium"
             break
         end
     end
-
 else
-    debugPrint("Failed to fetch whitelist JSON")
+    debug("Failed to fetch whitelist JSON, defaulting to free user")
 end
 
--- Kick if blacklisted
-if kickMessage then
-    debugPrint("User is blacklisted, kicking...")
-    player:Kick(kickMessage)
+-- Kick blacklisted users
+if kickReason then
+    debug("User is blacklisted, kicking...")
+    player:Kick(kickReason)
     return
 end
 
-debugPrint("User allowed, account type: " .. accountType)
+debug("User allowed. Account type: " .. accountType)
 
--- 2) Load main script using official pattern
-local baseUrl = "https://raw.githubusercontent.com/entity-3034228/Oreo-V4/main/poopparty-main/"
-local mainScriptUrl = baseUrl .. "NewMainScript.lua"
-debugPrint("Loading main script from: " .. mainScriptUrl)
-
+-- 2) Load the game script
+debug("Downloading game script...")
 local ok, code = pcall(function()
-    return game:HttpGet(mainScriptUrl, true)
+    return game:HttpGet(GAME_SCRIPT_URL, true)
 end)
 
 if not ok or not code then
-    error("Failed to download main script.")
+    error("[LOADER ERROR] Failed to download game script.")
 end
 
-debugPrint("Main script downloaded, executing...")
+debug("Game script downloaded, executing...")
 loadstring(code)()
